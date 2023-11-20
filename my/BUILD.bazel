@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_cross_binary")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_opa//opa:defs.bzl", "opa_library")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
+go_binary(
+    name = "app",
+    srcs = ["main.go"],
+)
+
+go_cross_binary(
+    name = "app_linux_amd64",
+    platform = "@io_bazel_rules_go//go/toolchain:linux_amd64",
+    target = "app",
+)
+
+opa_library(
+    name = "opalib",
+    srcs = ["main.rego"],
+)
+
+pkg_tar(
+    name = "app_tar",
+    srcs = [":app_linux_amd64"],
+)
+
+pkg_tar(
+    name = "opa_tar",
+    srcs = [":opalib"],
+)
+
+oci_image(
+    name = "image",
+    base = "@distroless_base",
+    entrypoint = ["/app_linux_amd64"],
+    tars = [
+        ":app_tar",
+        ":opa_tar",
+    ],
+)
+
+oci_tarball(
+    name = "tarball",
+    image = ":image",
+    repo_tags = ["my-repository:latest"],
+)
